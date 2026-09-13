@@ -153,7 +153,7 @@ export function createPinnedFetch(options: { local?: boolean } = {}): Fetcher {
   };
 }
 
-/** Evaluate untrusted regexes in a disposable worker with a hard deadline. */
+/** Bound trusted startup separately from evaluating untrusted input. */
 export async function validateIsolated(
   schema: import("./contracts.js").Json,
   value: import("./contracts.js").Json
@@ -167,22 +167,54 @@ export async function validateIsolated(
   });
   return new Promise<import("./rules.js").SchemaCheck>((resolve) => {
     const worker = new Worker(new URL("./schema-worker.js", import.meta.url), {
-      workerData: { schema, value },
       resourceLimits: { maxOldGenerationSizeMb: 48, stackSizeMb: 2 },
     });
-    const deadline = setTimeout(() => {
-      void worker.terminate();
-      resolve({
+    let ready = false;
+    let settled = false;
+    let deadline = setTimeout(() => {
+      finish({
         valid: false,
         blocked: true,
-        detail: "Isolated schema evaluation exceeded two seconds.",
+        detail:
+          "The isolated schema worker could not start within five seconds.",
       });
-    }, 2000);
-    worker.once("message", (message) => {
+    }, 5000);
+    function finish(result: import("./rules.js").SchemaCheck) {
+      if (settled) return;
+      settled = true;
       clearTimeout(deadline);
       void worker.terminate();
+      resolve(result);
+    }
+    worker.on("message", (message) => {
+      if (settled) return;
+      if (!ready) {
+        if (
+          !z.strictObject({ type: z.literal("ready") }).safeParse(message)
+            .success
+        ) {
+          finish({
+            valid: false,
+            blocked: true,
+            detail: "Invalid isolated validator readiness response.",
+          });
+          return;
+        }
+        ready = true;
+        clearTimeout(deadline);
+        deadline = setTimeout(() => {
+          finish({
+            valid: false,
+            blocked: true,
+            detail: "Isolated schema evaluation exceeded two seconds.",
+          });
+        }, 2000);
+        // Untrusted input is delivered only after trusted imports and setup.
+        worker.postMessage({ schema, value });
+        return;
+      }
       const result = resultSchema.safeParse(message);
-      resolve(
+      finish(
         result.success
           ? result.data
           : {
@@ -193,21 +225,18 @@ export async function validateIsolated(
       );
     });
     worker.once("error", () => {
-      clearTimeout(deadline);
-      resolve({
+      finish({
         valid: false,
         blocked: true,
         detail: "The isolated schema worker could not complete.",
       });
     });
-    worker.once("exit", (code) => {
-      clearTimeout(deadline);
-      if (code !== 0)
-        resolve({
-          valid: false,
-          blocked: true,
-          detail: "The isolated schema worker stopped before completion.",
-        });
+    worker.once("exit", () => {
+      finish({
+        valid: false,
+        blocked: true,
+        detail: "The isolated schema worker stopped before completion.",
+      });
     });
   });
 }

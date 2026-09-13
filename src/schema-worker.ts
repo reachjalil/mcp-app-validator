@@ -1,6 +1,13 @@
-import { parentPort, workerData } from "node:worker_threads";
+import { parentPort } from "node:worker_threads";
 import { validateJsonSchema } from "./rules.js";
 import { jsonSchema } from "./contracts.js";
-const schema = jsonSchema.parse(workerData.schema);
-const value = jsonSchema.parse(workerData.value);
-parentPort?.postMessage(validateJsonSchema(schema, value, true));
+import { z } from "zod";
+
+// Load trusted schema machinery before asking the parent for untrusted input.
+parentPort?.once("message", (message) => {
+  const { schema, value } = z
+    .strictObject({ schema: jsonSchema, value: jsonSchema })
+    .parse(message);
+  parentPort?.postMessage(validateJsonSchema(schema, value, true));
+});
+parentPort?.postMessage({ type: "ready" });

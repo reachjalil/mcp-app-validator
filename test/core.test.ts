@@ -328,3 +328,32 @@ test("isolated evaluation terminates pathological patterns", async () => {
   assert.equal(result.blocked, true);
   assert.ok(Date.now() - start < 6000);
 });
+
+test("isolated workers load trusted machinery before receiving input", {
+  timeout: 10000,
+}, async () => {
+  const { Worker } = await import("node:worker_threads");
+  const { once } = await import("node:events");
+  const worker = new Worker(
+    new URL("../dist/schema-worker.js", import.meta.url)
+  );
+  try {
+    const [ready] = await once(worker, "message");
+    assert.deepEqual(ready, { type: "ready" });
+    const response = once(worker, "message");
+    worker.postMessage({
+      schema: {
+        type: "object",
+        required: ["challenge"],
+        properties: { challenge: { type: "string" } },
+        additionalProperties: false,
+      },
+      value: { challenge: "startup-separated" },
+    });
+    const [result] = await response;
+    assert.equal(result.valid, true);
+    assert.equal(result.blocked, false);
+  } finally {
+    await worker.terminate();
+  }
+});

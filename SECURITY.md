@@ -9,3 +9,5 @@ The local UI binds to loopback with an exact Host check, an unpredictable API to
 Traces mask credential-named fields and Bearer strings. This is a best-effort redaction filter, not a guarantee that arbitrary private content is absent. Inspect exports before publishing them. The local JSON report is never automatically uploaded. The hosted product has separate account and sharing controls.
 
 Do not file target credentials or private report payloads in a public issue. Report exploitable issues through GitHub's private vulnerability reporting when enabled. Include a fictional minimal reproduction and affected version.
+
+Node schema checks use a disposable worker with a five-second budget for trusted module startup. The worker announces readiness before it receives the untrusted schema and value; evaluation then has its own two-second deadline. Startup, malformed replies, early exits and evaluation timeouts fail closed. Worker memory and stack remain bounded, and timed-out tool execution is never retried automatically.
