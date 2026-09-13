@@ -1,0 +1,52 @@
+{
+  "name": "mcp-app-validator",
+  "version": "0.1.0",
+  "description": "Inspect MCP servers and test MCP Apps with reproducible, versioned evidence. By HelloMCP.",
+  "type": "module",
+  "license": "MIT",
+  "homepage": "https://hellomcp.ai/validator",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/reachjalil/mcp-app-validator.git"
+  },
+  "exports": {
+    ".": "./src/index.ts",
+    "./node": "./src/node.ts",
+    "./host": "./src/host.ts"
+  },
+  "bin": {
+    "mcp-app-validator": "./dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "src",
+    "ui",
+    "README.md",
+    "LICENSE",
+    "SECURITY.md",
+    "THIRD_PARTY_NOTICES.md"
+  ],
+  "engines": {
+    "node": ">=22.12"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json && node build.mjs",
+    "check": "tsc -p tsconfig.json --noEmit",
+    "test": "npm run build && tsx --test test/*.test.ts",
+    "start": "node dist/cli.js serve"
+  },
+  "dependencies": {
+    "@cfworker/json-schema": "4.1.1",
+    "@modelcontextprotocol/ext-apps": "1.7.5",
+    "@modelcontextprotocol/sdk": "1.30.0",
+    "ipaddr.js": "2.3.0",
+    "safe-regex2": "5.0.0",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "25.5.0",
+    "esbuild": "0.28.2",
+    "tsx": "4.23.13",
+    "typescript": "5.9.3"
+  }
+}
